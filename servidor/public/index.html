@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Prática: SSE e WebSocket</title>
+    <style>
+      :root { color-scheme: light; font-family: system-ui, sans-serif; background: #f4f6fb; color: #172033; }
+      body { max-width: 1100px; margin: 0 auto; padding: 32px 20px; }
+      h1 { margin-bottom: 8px; }
+      .intro { color: #526078; margin-top: 0; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; margin-top: 24px; }
+      .card { background: white; border: 1px solid #dce2ed; border-radius: 12px; padding: 20px; box-shadow: 0 4px 16px #1d2a4410; }
+      .status { font-size: .9rem; color: #526078; }
+      .status::before { content: '●'; color: #d19a24; margin-right: 8px; }
+      .status.online::before { color: #17834a; }
+      button { border: 0; border-radius: 7px; padding: 10px 14px; background: #2457d6; color: white; cursor: pointer; }
+      button:disabled { background: #9aa6bb; cursor: not-allowed; }
+      ul { list-style: none; padding: 0; max-height: 360px; overflow: auto; }
+      li { background: #f1f4fa; border-radius: 7px; padding: 10px; margin: 8px 0; overflow-wrap: anywhere; font: .85rem ui-monospace, monospace; }
+      .note { font-size: .9rem; color: #526078; }
+    </style>
+  </head>
+  <body>
+    <h1>SSE e WebSocket na prática</h1>
+    <p class="intro">O container emissor chama o servidor por HTTP. O servidor envia cada evento aos navegadores conectados.</p>
+    <main class="grid">
+      <section class="card">
+        <h2>WebSocket</h2>
+        <p>Conexão persistente e bidirecional: cliente e servidor podem enviar mensagens.</p>
+        <p id="ws-status" class="status">Conectando...</p>
+        <button id="ws-send" disabled>Enviar mensagem ao servidor</button>
+        <ul id="ws-events" aria-live="polite"></ul>
+      </section>
+      <section class="card">
+        <h2>SSE (Server-Sent Events)</h2>
+        <p>Fluxo de eventos unidirecional do servidor para o navegador, usando HTTP.</p>
+        <p id="sse-status" class="status">Conectando...</p>
+        <p class="note">O navegador não envia mensagens pelo EventSource.</p>
+        <ul id="sse-events" aria-live="polite"></ul>
+      </section>
+    </main>
+    <script>
+      const protocolo = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const ws = new WebSocket(`${protocolo}//${location.host}/ws`);
+      const wsStatus = document.querySelector('#ws-status');
+      const wsSend = document.querySelector('#ws-send');
+      function adicionarEvento(lista, prefixo, dados) {
+        const item = document.createElement('li');
+        item.textContent = `${new Date().toLocaleTimeString()} ${prefixo}: ${dados}`;
+        lista.prepend(item);
+        while (lista.children.length > 30) lista.lastElementChild.remove();
+      }
+      ws.addEventListener('open', () => {
+        wsStatus.textContent = 'Conectado';
+        wsStatus.classList.add('online');
+        wsSend.disabled = false;
+      });
+      ws.addEventListener('close', () => {
+        wsStatus.textContent = 'Desconectado; atualize a página para reconectar';
+        wsStatus.classList.remove('online');
+        wsSend.disabled = true;
+      });
+      ws.addEventListener('message', (event) => adicionarEvento(document.querySelector('#ws-events'), 'WS', event.data));
+      wsSend.addEventListener('click', () => ws.send('Olá, servidor! Esta mensagem veio do navegador.'));
+      const sse = new EventSource('/sse');
+      const sseStatus = document.querySelector('#sse-status');
+      sse.addEventListener('open', () => {
+        sseStatus.textContent = 'Conectado';
+        sseStatus.classList.add('online');
+      });
+      sse.addEventListener('error', () => {
+        sseStatus.textContent = 'Reconectando...';
+        sseStatus.classList.remove('online');
+      });
+      sse.addEventListener('message', (event) => adicionarEvento(document.querySelector('#sse-events'), 'SSE', event.data));
+    </script>
+  </body>
+</html>

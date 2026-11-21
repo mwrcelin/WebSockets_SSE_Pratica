@@ -1,0 +1,21 @@
+services:
+  servidor:
+    build: ./servidor
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3000/health', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    networks: [rede_seminario]
+  emissor:
+    build: ./emissor
+    depends_on:
+      servidor:
+        condition: service_healthy
+    networks: [rede_seminario]
+networks:
+  rede_seminario:
+    driver: bridge
